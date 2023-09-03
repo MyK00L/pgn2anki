@@ -104,8 +104,9 @@ fn build_deck(pgn: &str, side: Color) -> Deck {
         if node.board(&start_position).turn() != side {
             if let (Some(prev), Some(mov)) = (node.parent(), node.prev_move()) {
                 let back_board = board_to_txt(node.board(&start_position).board(), side);
+                let comment = node.comment().unwrap_or_default();
                 let front_board = board_to_txt(prev.board(&start_position).board(), side);
-                let back_txt = format!("{}", mov);
+                let back_txt = format!("{}<br/>{}", mov, comment);
                 deck.add_note(
                     Note::new(
                         model.clone(),
