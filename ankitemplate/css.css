@@ -1,0 +1,16 @@
+@font-face { font-family:'Chess Merida Unicode'; src: url('_chess_merida_unicode.ttf'); }
+.card {
+ font-size: 20px;
+ text-align: center;
+ color: black;
+ background-color: white;
+}
+.dark-mode {
+  background-color: grey;
+  color: black;
+}
+.chess {
+ font-size: 10vmin;
+ font-family: "Chess Merida Unicode";
+}
+
