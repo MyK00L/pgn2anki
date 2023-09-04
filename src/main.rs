@@ -14,13 +14,13 @@ use std::fs;
 fn build_model() -> Model {
     const MODEL_ID: i64 = 0x25bbbb4805f55380;
     let css = include_str!("../ankitemplate/css.css");
-    let front_html = include_str!("../ankitemplate/front.html");
-    let back_html = include_str!("../ankitemplate/back.html");
     Model::new_with_options(
         MODEL_ID,
         "Mchess",
         vec![Field::new("front"), Field::new("back")],
-        vec![Template::new("Chess card").qfmt(front_html).afmt(back_html)],
+        vec![Template::new("Chess card")
+            .qfmt("{{front}}")
+            .afmt("{{back}}")],
         Some(css),
         None,
         None,
@@ -29,7 +29,25 @@ fn build_model() -> Model {
     )
 }
 
-fn board_to_txt(board: &Board, side: Color) -> String {
+fn build_squares_model() -> Model {
+    const MODEL_ID: i64 = 0x25bbbb4805f55381;
+    let css = include_str!("../ankitemplate/css.css");
+    Model::new_with_options(
+        MODEL_ID,
+        "Mchess",
+        vec![Field::new("square_name"), Field::new("square_board"), Field::new("square_color")],
+        vec![Template::new("Chess card").qfmt("Where on the board is {{square_name}}?").afmt("<div class='chess'>{{square_board}}</div><br/>{{square_name}}"),
+        Template::new("Chess card").qfmt("What square is this?<br/><div class='chess'>{{square_board}}</div>").afmt("{{square_name}}<br/><div class='chess'>{{square_board}}</div>"),
+        Template::new("Chess card").qfmt("What color is {{square_name}}").afmt("{{square_name}} is {{square_color}}<br/><div class='chess'>{{square_board}}</div>")],
+        Some(css),
+        None,
+        None,
+        None,
+        None,
+    )
+}
+
+fn board_to_txt(board: &Board, side: Color, bullets: &[Square]) -> String {
     let mut utf16 = Vec::<u16>::new();
 
     utf16.push(0xe300);
@@ -67,6 +85,12 @@ fn board_to_txt(board: &Board, side: Color) -> String {
                     Role::Pawn => 5,
                 }) + if piece.color == Color::Black { 6 } else { 0 }
                     + if square.is_dark() { 0xe154 } else { 0x2654 }
+            } else if bullets.contains(&square) {
+                if square.is_dark() {
+                    0xe122
+                } else {
+                    0x2022
+                }
             } else if square.is_dark() {
                 0xe100
             } else {
@@ -162,7 +186,7 @@ fn add_map_to_deck(deck: &mut Deck, map: &mut HashMap<DeckMapKey, DeckMapVal>) {
                 {}
                 </figcaption>
                 </figure>"#,
-            board_to_txt(&k.board, k.side),
+            board_to_txt(&k.board, k.side, &[]),
             questions_txt
         );
         let back = v
@@ -182,7 +206,7 @@ fn add_map_to_deck(deck: &mut Deck, map: &mut HashMap<DeckMapKey, DeckMapVal>) {
                         {}
                         </figcaption>
                         </figure>"#,
-                    board_to_txt(&aboard, k.side),
+                    board_to_txt(&aboard, k.side, &[]),
                     txt
                 )
             })
@@ -199,7 +223,27 @@ fn add_map_to_deck(deck: &mut Deck, map: &mut HashMap<DeckMapKey, DeckMapVal>) {
         );
     }
 }
-fn gen_deck(white: &[String], black: &[String]) -> Deck {
+fn add_squares_to_deck(deck: &mut Deck) {
+    let empty_board = Board::empty();
+    let model = build_squares_model(); // name board color
+    for square in Square::ALL {
+        let note = Note::new_with_options(
+            model.clone(),
+            vec![
+                &square.to_string(),
+                &board_to_txt(&empty_board, Color::White, &[square]),
+                if square.is_light() { "light" } else { "dark" },
+            ],
+            None,
+            Some(vec![&String::from("chess::square")]),
+            Some(&format!("chess_square_{}", square)),
+        )
+        .expect("could not build square note");
+        deck.add_note(note);
+    }
+}
+
+fn gen_deck(white: &[String], black: &[String], squares: bool) -> Deck {
     let mut map = HashMap::<DeckMapKey, DeckMapVal>::new();
     for filename in white {
         let pgn = fs::read_to_string(filename)
@@ -213,6 +257,9 @@ fn gen_deck(white: &[String], black: &[String]) -> Deck {
     }
     let mut rng = rand::thread_rng();
     let mut deck = Deck::new(rng.gen(), "Chess", "chess repertoire deck");
+    if squares {
+        add_squares_to_deck(&mut deck);
+    }
     add_map_to_deck(&mut deck, &mut map);
     deck
 }
@@ -224,6 +271,9 @@ struct Args {
     /// filename of the output apkg deck file
     #[arg(required = true)]
     out: String,
+    /// wether to add square notes
+    #[arg(long)]
+    squares: bool,
     /// filenames of pgns to be processed from white's perspective
     #[arg(short)]
     white: Vec<String>,
@@ -234,7 +284,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let deck = gen_deck(&args.white, &args.black);
+    let deck = gen_deck(&args.white, &args.black, args.squares);
     let mut package = Package::new(vec![deck], vec!["ankitemplate/_chess_merida_unicode.ttf"])
         .expect("could not build anki package");
     package
