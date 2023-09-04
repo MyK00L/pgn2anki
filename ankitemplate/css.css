@@ -5,12 +5,15 @@
  color: black;
  background-color: white;
 }
-.dark-mode {
-  background-color: grey;
+.nightMode .chess {
+  background-color: whitesmoke;
   color: black;
 }
 .chess {
  font-size: 10vmin;
  font-family: "Chess Merida Unicode";
+ display: inline-block;
+ margin: 0;
+ padding: 0;
 }
 
