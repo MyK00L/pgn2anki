@@ -222,7 +222,7 @@ fn gen_deck(white: &[String], black: &[String]) -> Deck {
 #[command(author, version, about)]
 struct Args {
     /// filename of the output apkg deck file
-    #[arg(required=true)]
+    #[arg(required = true)]
     out: String,
     /// filenames of pgns to be processed from white's perspective
     #[arg(short)]
